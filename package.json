@@ -41,15 +41,16 @@
   "dependencies": {
     "@sqltools/base-driver": "latest",
     "@sqltools/types": "latest",
+    "@sqltools/util/query": "latest",
     "cassandra-driver": "^4.5.2",
     "uuid": "^7.0.2"
   },
   "devDependencies": {
-    "@babel/preset-env": "^7.5.5",
+    "@babel/preset-env": "^7.10.4",
     "@types/cassandra-driver": "^4.2.0",
-    "@types/node": "^14.0.9",
+    "@types/node": "^14.0.14",
     "@types/vscode": "^1.42.0",
     "@types/webpack-env": "^1.15.2",
-    "typescript": "^3.7.3"
+    "typescript": "^3.9.6"
   }
 }

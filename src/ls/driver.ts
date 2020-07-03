@@ -1,9 +1,9 @@
 import * as CassandraLib from 'cassandra-driver';
 import AbstractDriver from '@sqltools/base-driver';
 import Queries from './queries';
-// import sqltoolsRequire from '@sqltools/base-driver/dist/lib/require';
 import { IConnectionDriver, MConnectionExplorer, NSDatabase, ContextValue, Arg0 } from '@sqltools/types';
 import { v4 as generateId } from 'uuid';
+// import { parse as queryParse } from '@sqltools/util/query';
 
 /**
  * MOCKED DB DRIVER
@@ -45,14 +45,6 @@ export default class CqlDriver
   queries = Queries.queries;
   isLegacy = false;
 
-  /** if you need to require your lib in runtime and then
-   * use `this.lib.methodName()` anywhere and vscode will take care of the dependencies
-   * to be installed on a cache folder
-   **/
-  // private get lib() {
-  //   return sqltoolsRequire('node-packge-name') as DriverLib;
-  // }
-
   public async open() {
     if (this.connection) {
       return this.connection;
@@ -79,14 +71,13 @@ export default class CqlDriver
     const conn = new CassandraLib.Client(clientOptions);
     await conn.connect();
     this.connection = Promise.resolve(conn);
-    // TODO
     // Check for modern schema support
-    // const results = await this.query('SELECT keyspace_name FROM system_schema.tables LIMIT 1');
-    // if (results[0].error) {
-    //   this.log.extend('info')('Remote Cassandra database is in legacy mode');
-    //   this.queries = LegacyQueries;
-    //   this.isLegacy = true;
-    // }
+    const results = await this.query('SELECT keyspace_name FROM system_schema.tables LIMIT 1', {});
+    if (results[0].error) {
+      this.log.extend('info')('Remote Cassandra database is in legacy mode');
+      this.queries = Queries.legacyQueries;
+      this.isLegacy = true;
+    }
     return this.connection;
   }
 
@@ -102,7 +93,9 @@ export default class CqlDriver
    * @param query
    */
   private cqlParse(query: string): (string|CQLBatch)[] {
-    const queries = Utils.query.parse(query, 'cql');  // TODO
+    // TODO: Use '@sqltools/util/query'
+    // const queries = queryParse(query, 'cql');
+    const queries = query.split(/\s*;\s*(?=([^']*'[^']*')*[^']*$)/g).filter((v) => !!v && !!`${v}`.trim()).map(v => `${v};`);
     const cqlQueries: (string|CQLBatch)[] = [];
     for (let i = 0; i < queries.length; i++) {
       const query = queries[i];
@@ -148,9 +141,9 @@ export default class CqlDriver
     return cqlQueries;
   }
 
-  public query: (typeof AbstractDriver)['prototype']['query'] = async (queries, opt = {}) => {
+  public query: (typeof AbstractDriver)['prototype']['query'] = async (query, opt = {}) => {
     const conn = await this.open();
-    const parsedQueries = this.cqlParse(queries);  // TODO
+    const parsedQueries = this.cqlParse(query.toString());
     const results: NSDatabase.IResult[] = [];
     for (let i = 0; i < parsedQueries.length; i++) {
       const q = parsedQueries[i];
@@ -211,10 +204,8 @@ export default class CqlDriver
       case ContextValue.CONNECTED_CONNECTION:
         return <MConnectionExplorer.IChildItem[]>[
           { label: 'Tables', type: ContextValue.RESOURCE_GROUP, iconId: 'folder', childType: ContextValue.TABLE },
-          { label: 'Views', type: ContextValue.RESOURCE_GROUP, iconId: 'folder', childType: ContextValue.VIEW },
         ];
       case ContextValue.TABLE:
-      case ContextValue.VIEW:
         let i = 0;
         return <NSDatabase.IColumn[]>[{
           database: 'fakedb',
@@ -282,7 +273,6 @@ export default class CqlDriver
     console.log({ item, parent });
     switch (item.childType) {
       case ContextValue.TABLE:
-      case ContextValue.VIEW:
         let i = 0;
         return <MConnectionExplorer.IChildItem[]>[{
           database: 'fakedb',
@@ -315,7 +305,6 @@ export default class CqlDriver
   public async searchItems(itemType: ContextValue, search: string, _extraParams: any = {}): Promise<NSDatabase.SearchableItem[]> {
     switch (itemType) {
       case ContextValue.TABLE:
-      case ContextValue.VIEW:
         let j = 0;
         return [{
           database: 'fakedb',
